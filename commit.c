@@ -203,7 +203,12 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
         commit.has_parent = 0; // first commit — no parent
     }
 
-    // TODO: fill author, timestamp, message and write (next commits)
-    (void)message; (void)commit_id_out;
+    // Step 3: Fill in author (from PES_AUTHOR env var), timestamp, message
+    strncpy(commit.author,  pes_author(), sizeof(commit.author)  - 1);
+    strncpy(commit.message, message,      sizeof(commit.message) - 1);
+    commit.timestamp = (uint64_t)time(NULL);
+
+    // TODO: serialize and write to object store (next commit)
+    (void)commit_id_out;
     return -1;
 }
