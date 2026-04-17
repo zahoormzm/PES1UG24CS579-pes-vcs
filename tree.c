@@ -147,8 +147,39 @@ static int write_tree_level(IndexEntry *entries, int count, int prefix_len, Obje
             te->name[sizeof(te->name) - 1] = '\0';
             i++;
         } else {
-            // TODO: handle subdirectories (next commit)
-            i++;
+            // Directory: the first path component before '/' names the subtree.
+            size_t dir_len = (size_t)(slash - rel);
+            char   dir_name[256];
+            if (dir_len >= sizeof(dir_name)) { i++; continue; }
+            strncpy(dir_name, rel, dir_len);
+            dir_name[dir_len] = '\0';
+
+            // Collect all entries whose relative path starts with "<dir_name>/"
+            int sub_start      = i;
+            int sub_count      = 0;
+            int new_prefix_len = prefix_len + (int)dir_len + 1; // +1 for '/'
+
+            while (i < count) {
+                const char *r = entries[i].path + prefix_len;
+                if (strncmp(r, dir_name, dir_len) == 0 && r[dir_len] == '/') {
+                    sub_count++;
+                    i++;
+                } else {
+                    break;
+                }
+            }
+
+            // Recursively write the subtree and capture its root hash
+            ObjectID sub_id;
+            if (write_tree_level(entries + sub_start, sub_count, new_prefix_len, &sub_id) != 0)
+                return -1;
+
+            // Add a directory (040000) entry pointing at the subtree object
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = 0040000;
+            te->hash = sub_id;
+            strncpy(te->name, dir_name, sizeof(te->name) - 1);
+            te->name[sizeof(te->name) - 1] = '\0';
         }
     }
 
