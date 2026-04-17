@@ -195,7 +195,53 @@ int index_save(const Index *index) {
 }
 
 int index_add(Index *index, const char *path) {
-    // TODO: Implement file staging
-    (void)index; (void)path;
-    return -1;
+    // Step 1: Read file contents
+    FILE *f = fopen(path, "rb");
+    if (!f) { fprintf(stderr, "error: cannot open '%s'\n", path); return -1; }
+
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (file_size < 0) { fclose(f); return -1; }
+
+    void *buf = malloc((size_t)file_size + 1);
+    if (!buf) { fclose(f); return -1; }
+
+    if (file_size > 0 && fread(buf, 1, (size_t)file_size, f) != (size_t)file_size) {
+        free(buf); fclose(f); return -1;
+    }
+    fclose(f);
+
+    // Step 2: Store contents as a blob object in the object store
+    ObjectID blob_id;
+    if (object_write(OBJ_BLOB, buf, (size_t)file_size, &blob_id) != 0) {
+        free(buf); return -1;
+    }
+    free(buf);
+
+    // Step 3: Stat the file to capture metadata for fast change detection
+    struct stat st;
+    if (stat(path, &st) != 0) return -1;
+    uint32_t mode = (st.st_mode & S_IXUSR) ? 0100755 : 0100644;
+
+    // Step 4: Update an existing entry or append a new one
+    IndexEntry *existing = index_find(index, path);
+    if (existing) {
+        existing->hash      = blob_id;
+        existing->mode      = mode;
+        existing->mtime_sec = (uint64_t)st.st_mtime;
+        existing->size      = (uint32_t)st.st_size;
+    } else {
+        if (index->count >= MAX_INDEX_ENTRIES) return -1;
+        IndexEntry *entry = &index->entries[index->count++];
+        strncpy(entry->path, path, sizeof(entry->path) - 1);
+        entry->path[sizeof(entry->path) - 1] = '\0';
+        entry->hash      = blob_id;
+        entry->mode      = mode;
+        entry->mtime_sec = (uint64_t)st.st_mtime;
+        entry->size      = (uint32_t)st.st_size;
+    }
+
+    // Step 5: Persist the updated staging area atomically
+    return index_save(index);
 }
