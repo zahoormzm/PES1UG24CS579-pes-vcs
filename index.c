@@ -24,6 +24,9 @@
 #include <unistd.h>
 #include <dirent.h>
 
+// Forward declaration — object_write is implemented in object.c
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
+
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
 // Find an index entry by path (linear scan).
@@ -114,6 +117,12 @@ int index_status(const Index *index) {
     printf("\n");
 
     return 0;
+}
+
+// ─── Helper ──────────────────────────────────────────────────────────────────
+
+static int compare_index_entries(const void *a, const void *b) {
+    return strcmp(((const IndexEntry *)a)->path, ((const IndexEntry *)b)->path);
 }
 
 // ─── TODO: Implement these ───────────────────────────────────────────────────
