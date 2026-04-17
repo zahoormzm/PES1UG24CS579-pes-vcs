@@ -17,4 +17,7 @@ test_tree
 .vscode/
 .idea/
 
+# Claude Code settings
+.claude/
+
 

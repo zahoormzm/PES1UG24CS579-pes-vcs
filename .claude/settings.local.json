@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(make all *)",
-      "Bash(./test_objects *)"
-    ]
-  }
-}
