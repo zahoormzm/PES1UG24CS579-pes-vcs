@@ -192,7 +192,19 @@ static int write_tree_level(IndexEntry *entries, int count, int prefix_len, Obje
 }
 
 int tree_from_index(ObjectID *id_out) {
-    // TODO: wire up index_load and call write_tree_level (next commit)
-    (void)id_out;
-    return -1;
+    // Index is ~5.6 MB — heap-allocate to avoid blowing the default 8 MB stack
+    Index *index = malloc(sizeof(Index));
+    if (!index) return -1;
+
+    if (index_load(index) != 0) {
+        free(index);
+        return -1;
+    }
+
+    // Sort by path so the linear grouping pass in write_tree_level works correctly
+    qsort(index->entries, (size_t)index->count, sizeof(IndexEntry), compare_index_by_path);
+
+    int rc = write_tree_level(index->entries, index->count, 0, id_out);
+    free(index);
+    return rc;
 }
