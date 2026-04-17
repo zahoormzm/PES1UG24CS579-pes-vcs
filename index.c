@@ -128,9 +128,38 @@ static int compare_index_entries(const void *a, const void *b) {
 // ─── TODO: Implement these ───────────────────────────────────────────────────
 
 int index_load(Index *index) {
-    // TODO: Implement index loading
-    (void)index;
-    return -1;
+    index->count = 0;
+
+    FILE *f = fopen(INDEX_FILE, "r");
+    if (!f) {
+        // Index file doesn't exist yet — treat as an empty staging area (not an error)
+        return 0;
+    }
+
+    while (index->count < MAX_INDEX_ENTRIES) {
+        IndexEntry *entry = &index->entries[index->count];
+        char hex[HASH_HEX_SIZE + 2];
+        unsigned int mode;
+        unsigned long long mtime;
+        unsigned int size;
+
+        // Format: <mode-octal> <64-hex-hash> <mtime> <size> <path>
+        int ret = fscanf(f, "%o %64s %llu %u %511s\n",
+                         &mode, hex, &mtime, &size, entry->path);
+        if (ret == EOF) break;
+        if (ret != 5) { fclose(f); return -1; }
+
+        entry->mode      = (uint32_t)mode;
+        entry->mtime_sec = (uint64_t)mtime;
+        entry->size      = (uint32_t)size;
+
+        if (hex_to_hash(hex, &entry->hash) != 0) { fclose(f); return -1; }
+
+        index->count++;
+    }
+
+    fclose(f);
+    return 0;
 }
 
 int index_save(const Index *index) {
