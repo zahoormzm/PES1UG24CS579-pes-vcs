@@ -120,8 +120,48 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
 
 // ─── TODO: Implement these ──────────────────────────────────────────────────
 
+// Comparator used to sort index entries by path before tree building.
+static int compare_index_by_path(const void *a, const void *b) {
+    return strcmp(((const IndexEntry *)a)->path, ((const IndexEntry *)b)->path);
+}
+
+// Recursive helper: build and write one tree level.
+// entries[0..count-1] are all index entries whose paths share the same
+// prefix (already consumed). prefix_len is the byte offset into each
+// path where the current level begins.
+static int write_tree_level(IndexEntry *entries, int count, int prefix_len, ObjectID *id_out) {
+    Tree tree;
+    tree.count = 0;
+
+    int i = 0;
+    while (i < count && tree.count < MAX_TREE_ENTRIES) {
+        const char *rel   = entries[i].path + prefix_len;
+        const char *slash = strchr(rel, '/');
+
+        if (!slash) {
+            // Plain file at this level — add a blob entry directly
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = entries[i].mode;
+            te->hash = entries[i].hash;
+            strncpy(te->name, rel, sizeof(te->name) - 1);
+            te->name[sizeof(te->name) - 1] = '\0';
+            i++;
+        } else {
+            // TODO: handle subdirectories (next commit)
+            i++;
+        }
+    }
+
+    void  *data;
+    size_t data_len;
+    if (tree_serialize(&tree, &data, &data_len) != 0) return -1;
+    int rc = object_write(OBJ_TREE, data, data_len, id_out);
+    free(data);
+    return rc;
+}
+
 int tree_from_index(ObjectID *id_out) {
-    // TODO: Implement recursive tree building
+    // TODO: wire up index_load and call write_tree_level (next commit)
     (void)id_out;
     return -1;
 }
