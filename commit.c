@@ -221,7 +221,9 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     }
     free(data);
 
-    // TODO: update HEAD to point at new commit (next commit)
-    (void)commit_id_out;
-    return -1;
+    // Step 6: Atomically advance the branch pointer (HEAD → refs/heads/main → new hash)
+    if (head_update(&commit_id) != 0) return -1;
+
+    if (commit_id_out) *commit_id_out = commit_id;
+    return 0;
 }
