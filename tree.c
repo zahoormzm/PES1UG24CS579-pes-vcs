@@ -201,6 +201,17 @@ int tree_from_index(ObjectID *id_out) {
         return -1;
     }
 
+    if (index->count == 0) {
+        // Nothing staged — write an empty root tree so commit_create still works
+        free(index);
+        Tree empty; empty.count = 0;
+        void *data; size_t data_len;
+        if (tree_serialize(&empty, &data, &data_len) != 0) return -1;
+        int rc = object_write(OBJ_TREE, data, data_len, id_out);
+        free(data);
+        return rc;
+    }
+
     // Sort by path so the linear grouping pass in write_tree_level works correctly
     qsort(index->entries, (size_t)index->count, sizeof(IndexEntry), compare_index_by_path);
 
