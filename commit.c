@@ -182,7 +182,28 @@ int head_update(const ObjectID *new_commit) {
 // ─── TODO: Implement these ───────────────────────────────────────────────────
 
 int commit_create(const char *message, ObjectID *commit_id_out) {
-    // TODO: Implement commit creation
+    // Step 1: Build the tree snapshot from whatever is staged in the index
+    ObjectID tree_id;
+    if (tree_from_index(&tree_id) != 0) {
+        fprintf(stderr, "error: nothing staged to commit\n");
+        return -1;
+    }
+
+    // Step 2: Read the current HEAD to use as the parent commit (absent for
+    // the very first commit in an empty repository)
+    Commit commit;
+    memset(&commit, 0, sizeof(commit));
+    commit.tree = tree_id;
+
+    ObjectID parent_id;
+    if (head_read(&parent_id) == 0) {
+        commit.parent     = parent_id;
+        commit.has_parent = 1;
+    } else {
+        commit.has_parent = 0; // first commit — no parent
+    }
+
+    // TODO: fill author, timestamp, message and write (next commits)
     (void)message; (void)commit_id_out;
     return -1;
 }
