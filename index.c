@@ -163,9 +163,35 @@ int index_load(Index *index) {
 }
 
 int index_save(const Index *index) {
-    // TODO: Implement atomic index saving
-    (void)index;
-    return -1;
+    // Heap-allocate the sorted copy: Index is ~5.6 MB, too large for the stack
+    Index *sorted = malloc(sizeof(Index));
+    if (!sorted) return -1;
+    *sorted = *index;
+    qsort(sorted->entries, (size_t)sorted->count, sizeof(IndexEntry), compare_index_entries);
+
+    char tmp_path[256];
+    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", INDEX_FILE);
+
+    FILE *f = fopen(tmp_path, "w");
+    if (!f) { free(sorted); return -1; }
+
+    char hex[HASH_HEX_SIZE + 1];
+    for (int i = 0; i < sorted->count; i++) {
+        hash_to_hex(&sorted->entries[i].hash, hex);
+        fprintf(f, "%o %s %llu %u %s\n",
+                sorted->entries[i].mode,
+                hex,
+                (unsigned long long)sorted->entries[i].mtime_sec,
+                (unsigned int)sorted->entries[i].size,
+                sorted->entries[i].path);
+    }
+
+    fflush(f);
+    fsync(fileno(f));
+    fclose(f);
+    free(sorted);
+
+    return rename(tmp_path, INDEX_FILE);
 }
 
 int index_add(Index *index, const char *path) {
