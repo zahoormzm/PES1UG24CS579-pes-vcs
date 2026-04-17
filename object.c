@@ -63,8 +63,34 @@ int object_exists(const ObjectID *id) {
 // ─── TODO: Implement these ──────────────────────────────────────────────────
 
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
-    // TODO: Implement
-    (void)type; (void)data; (void)len; (void)id_out;
+    // Step 1: Map the ObjectType to its header string
+    const char *type_str;
+    switch (type) {
+        case OBJ_BLOB:   type_str = "blob";   break;
+        case OBJ_TREE:   type_str = "tree";   break;
+        case OBJ_COMMIT: type_str = "commit"; break;
+        default: return -1;
+    }
+
+    // Step 2: Build the full object in memory: "<type> <size>\0<data>"
+    // The header is a NUL-terminated string; we include that NUL in the object.
+    char header[64];
+    int header_len = snprintf(header, sizeof(header), "%s %zu", type_str, len);
+    size_t obj_len = (size_t)header_len + 1 + len; // +1 for the NUL terminator
+
+    uint8_t *obj = malloc(obj_len);
+    if (!obj) return -1;
+    memcpy(obj, header, (size_t)header_len);
+    obj[header_len] = '\0';
+    if (len > 0) memcpy(obj + header_len + 1, data, len);
+
+    // Step 3: Compute SHA-256 of the full object (header + data)
+    ObjectID id;
+    compute_hash(obj, obj_len, &id);
+    free(obj);
+
+    if (id_out) *id_out = id;
+    // TODO: write to disk (next step)
     return -1;
 }
 
