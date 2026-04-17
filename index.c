@@ -121,6 +121,8 @@ int index_status(const Index *index) {
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
+// Sort comparator: index entries are stored sorted by path so diffs and
+// tree construction get deterministic output regardless of add order.
 static int compare_index_entries(const void *a, const void *b) {
     return strcmp(((const IndexEntry *)a)->path, ((const IndexEntry *)b)->path);
 }
