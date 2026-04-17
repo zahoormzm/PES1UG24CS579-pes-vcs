@@ -143,15 +143,17 @@ static int write_tree_level(IndexEntry *entries, int count, int prefix_len, Obje
             TreeEntry *te = &tree.entries[tree.count++];
             te->mode = entries[i].mode;
             te->hash = entries[i].hash;
-            strncpy(te->name, rel, sizeof(te->name) - 1);
-            te->name[sizeof(te->name) - 1] = '\0';
+            size_t name_len = strlen(rel);
+            if (name_len >= sizeof(te->name)) name_len = sizeof(te->name) - 1;
+            memcpy(te->name, rel, name_len);
+            te->name[name_len] = '\0';
             i++;
         } else {
             // Directory: the first path component before '/' names the subtree.
             size_t dir_len = (size_t)(slash - rel);
             char   dir_name[256];
             if (dir_len >= sizeof(dir_name)) { i++; continue; }
-            strncpy(dir_name, rel, dir_len);
+            memcpy(dir_name, rel, dir_len);
             dir_name[dir_len] = '\0';
 
             // Collect all entries whose relative path starts with "<dir_name>/"
@@ -178,8 +180,8 @@ static int write_tree_level(IndexEntry *entries, int count, int prefix_len, Obje
             TreeEntry *te = &tree.entries[tree.count++];
             te->mode = 0040000;
             te->hash = sub_id;
-            strncpy(te->name, dir_name, sizeof(te->name) - 1);
-            te->name[sizeof(te->name) - 1] = '\0';
+            memcpy(te->name, dir_name, dir_len);
+            te->name[dir_len] = '\0';
         }
     }
 
