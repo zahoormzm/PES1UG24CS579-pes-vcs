@@ -116,7 +116,9 @@ pointer atomically.
 
 ### Final — `make test-integration`
 
-![Integration test](images/integration.png)
+![Integration test part 1](images/final_a.png)
+
+![Integration test part 2](images/final_b.png)
 
 ---
 
