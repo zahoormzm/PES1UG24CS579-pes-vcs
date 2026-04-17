@@ -89,8 +89,33 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     compute_hash(obj, obj_len, &id);
     free(obj);
 
+    // Step 4: Deduplication — if the object already exists, skip writing
+    if (object_exists(&id)) {
+        if (id_out) *id_out = id;
+        return 0;
+    }
+
+    // Step 5: Build paths using the 64-char hex hash
+    char hex[HASH_HEX_SIZE + 1];
+    hash_to_hex(&id, hex);
+
+    // Shard directory: .pes/objects/XX/  (first 2 hex chars)
+    char shard_dir[300];
+    snprintf(shard_dir, sizeof(shard_dir), "%s/%.2s", OBJECTS_DIR, hex);
+
+    // Final object path: .pes/objects/XX/YYYY...
+    char final_path[400];
+    snprintf(final_path, sizeof(final_path), "%s/%.2s/%s", OBJECTS_DIR, hex, hex + 2);
+
+    // Temp path for atomic rename
+    char tmp_path[416];
+    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", final_path);
+
+    // Step 6: Create the shard directory (ignore EEXIST)
+    mkdir(shard_dir, 0755);
+
     if (id_out) *id_out = id;
-    // TODO: write to disk (next step)
+    // TODO: write temp file and rename (next step)
     return -1;
 }
 
