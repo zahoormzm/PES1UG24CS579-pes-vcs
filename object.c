@@ -186,7 +186,10 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
     uint8_t *null_ptr = memchr(buf, '\0', (size_t)file_size);
     if (!null_ptr) { free(buf); return -1; }
 
-    // Step 5: Parse the type from the header ("blob", "tree", or "commit")
+    // Step 5: Parse the type and declared size from the header
+    const char *sp = memchr(buf, ' ', (size_t)(null_ptr - buf));
+    if (!sp) { free(buf); return -1; }
+
     if      (strncmp((char *)buf, "blob ",   5) == 0) *type_out = OBJ_BLOB;
     else if (strncmp((char *)buf, "tree ",   5) == 0) *type_out = OBJ_TREE;
     else if (strncmp((char *)buf, "commit ", 7) == 0) *type_out = OBJ_COMMIT;
@@ -195,6 +198,10 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
     // Step 6: Copy the data portion (everything after the '\0') to a new buffer
     size_t header_end = (size_t)(null_ptr - buf) + 1;
     size_t data_len   = (size_t)file_size - header_end;
+
+    // Validate: the size encoded in the header must match actual data length
+    size_t declared = (size_t)strtoull(sp + 1, NULL, 10);
+    if (declared != data_len) { free(buf); return -1; }
 
     void *data = malloc(data_len + 1);
     if (!data) { free(buf); return -1; }
